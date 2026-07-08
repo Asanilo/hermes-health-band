@@ -1,6 +1,6 @@
 """Health Band tools for Hermes.
 
-Provides tools to read health data from HUAWEI Band 8 via Gadgetbridge sync.
+Provides tools to read health data from Gadgetbridge-compatible smart bands.
 Data lives in ~/.hermes/health_band/
 """
 from __future__ import annotations
@@ -287,7 +287,7 @@ HEALTH_BAND_SCHEMA = {
     "function": {
         "name": "health_band",
         "description": (
-            "Read health data from HUAWEI Band 8 (heart rate, steps, SpO2, sleep) "
+            "Read health data from a smart band (heart rate, steps, SpO2, sleep) "
             "via Gadgetbridge sync. Use when user asks about heart rate, health, "
             "exercise, sleep, or band status."
         ),

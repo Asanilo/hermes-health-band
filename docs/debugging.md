@@ -43,7 +43,7 @@ cat derived/sleep.json | python3 -m json.tool | head -20
 
 ## Known limitations
 
-- Band 8 does not write `MIN_HEART_RATE`, `AVG_HEART_RATE`, `MIN_OXYGEN_SATURATION`, `AVG_OXYGEN_SATURATION` during sleep (all -1 in DB)
-- `HEART_PULSE_SAMPLE`, `MI_BAND_ACTIVITY_SAMPLE` tables are empty on Band 8
+- Some bands do not write `MIN_HEART_RATE`, `AVG_HEART_RATE`, `MIN_OXYGEN_SATURATION`, `AVG_OXYGEN_SATURATION` during sleep (all -1 in DB)
+- `HEART_PULSE_SAMPLE`, `MI_BAND_ACTIVITY_SAMPLE` tables may be empty depending on band model
 - `BED_TIME = -1000` means invalid (band doesn't record it)
 - SCORE=-1 rows are invalid sessions — filtered out by the script

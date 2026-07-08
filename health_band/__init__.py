@@ -1,6 +1,6 @@
 """Health Band plugin for Hermes.
 
-Registers health_band tool for reading HUAWEI Band 8 health data
+Registers health_band tool for reading smart band health data
 via Gadgetbridge sync.
 """
 from __future__ import annotations

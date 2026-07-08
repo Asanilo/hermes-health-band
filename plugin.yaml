@@ -1,6 +1,6 @@
 name: health-band
 version: 1.1.0
-description: "Read health data from HUAWEI Band 8 (heart rate, steps, SpO2, sleep, stress, battery) via Gadgetbridge sync."
+description: "Read health data from Gadgetbridge-compatible smart bands (heart rate, steps, SpO2, sleep, stress, battery)."
 config:
   retention_days:
     type: integer

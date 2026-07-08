@@ -291,7 +291,7 @@ def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
 
         stage_blocks = split_stage_blocks(stage_rows)
 
-        # Stage encoding (HUAWEI Band 8):
+        # Stage encoding (Gadgetbridge):
         # stage 1=light, stage 2=REM, stage 3=deep, stage 4=awake, stage 5=nap
         STAGE_NAMES = {1: "light", 2: "rem", 3: "deep", 4: "awake", 5: "nap"}
 

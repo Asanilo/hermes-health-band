@@ -1,12 +1,13 @@
 # hermes-health-band
 
-**Hermes Agent plugin** — read HUAWEI Band 8 health data (heart rate, steps,
+**Hermes Agent plugin** — read health data from Gadgetbridge-compatible smart
+bands (heart rate, steps,
 SpO2, sleep, stress, battery) synced via Gadgetbridge.
 
 ## Prerequisites
 
 - [Hermes Agent](https://hermes-agent.nousresearch.com) installed
-- HUAWEI Band 8 paired with [Gadgetbridge](https://gadgetbridge.org/) on an Android phone
+- Gadgetbridge-compatible band paired with [Gadgetbridge](https://gadgetbridge.org/) on an Android phone
 - Gadgetbridge DB synced to your computer (via Syncthing or manual copy)
 
 ## Installation

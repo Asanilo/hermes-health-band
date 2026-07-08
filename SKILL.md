@@ -1,12 +1,12 @@
 ---
 name: health-band
-description: HUAWEI Band 8 数据查询工具，通过 Gadgetbridge 同步数据
+description: 智能手环数据查询工具，通过 Gadgetbridge 同步数据
 tags: [health, wearable, gadgetbridge]
 ---
 
 # health-band
 
-HUAWEI Band 8 数据查询工具，通过 Gadgetbridge 同步数据。
+智能手环数据查询工具，通过 Gadgetbridge 同步数据。
 
 ## Tool
 

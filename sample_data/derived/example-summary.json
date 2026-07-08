@@ -4,10 +4,10 @@
   "data_latest_at": "2026-06-15T11:45:00+08:00",
   "source": "gadgetbridge_export",
   "device": {
-    "name": "HUAWEI Band 8",
-    "manufacturer": "HUAWEI",
+    "name": "Smart Band",
+    "manufacturer": "Generic",
     "identifier": "XX:XX:XX:XX:XX:XX",
-    "model": "HUAWEI Band 8"
+    "model": "Gadgetbridge"
   },
   "steps_today": 8523,
   "distance_meters_today": 6240,

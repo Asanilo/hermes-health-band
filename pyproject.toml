@@ -5,7 +5,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 [project]
 name = "hermes-health-band"
 version = "1.1.0"
-description = "Hermes Agent plugin — read HUAWEI Band 8 health data via Gadgetbridge sync"
+description = "Hermes Agent plugin — read smart band health data via Gadgetbridge sync"
 authors = [
     {name = "Asanilo"},
 ]
