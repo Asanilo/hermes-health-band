@@ -12,6 +12,7 @@ from parse_gadgetbridge_summary import (
     build_sleep_data,
     build_stress_data,
     build_summary,
+    detect_tables,
     project_root,
     resolve_db_path,
     resolve_output_path,
@@ -74,9 +75,13 @@ def _cleanup_old(history_dir, retention_days):
         print(f"cleaned up {removed} old history files (before {cutoff})", flush=True)
 
 
-def parse_once(db_path, summary_out, history_out, sleep_out, stress_out, summary_date, last_date, retention_days):
+def parse_once(db_path, summary_out, history_out, sleep_out, stress_out, summary_date, last_date, retention_days,
+                activity_table="HUAWEI_ACTIVITY_SAMPLE",
+                sleep_stats_table="HUAWEI_SLEEP_STATS_SAMPLE",
+                sleep_stage_table="HUAWEI_SLEEP_STAGE_SAMPLE",
+                stress_table="HUAWEI_STRESS_SAMPLE"):
     """Parse once and return (new_date, did_archive)."""
-    summary = build_summary(db_path, summary_date, DEFAULT_TIMEZONE)
+    summary = build_summary(db_path, summary_date, DEFAULT_TIMEZONE, activity_table=activity_table)
     new_date = summary["summary_date"]
 
     # Archive if date changed
@@ -89,17 +94,21 @@ def parse_once(db_path, summary_out, history_out, sleep_out, stress_out, summary
     _cleanup_old(_history_dir(summary_out), retention_days)
 
     # Build sleep - use new_date (resolved from build_summary), not raw summary_date
-    sleep_data = build_sleep_data(db_path, new_date, DEFAULT_TIMEZONE)
+    sleep_data = build_sleep_data(db_path, new_date, DEFAULT_TIMEZONE,
+                                   sleep_stats_table=sleep_stats_table,
+                                   sleep_stage_table=sleep_stage_table)
     if sleep_data:
         write_json(sleep_out, sleep_data)
 
     # Add stress to summary
-    stress_data = build_stress_data(db_path, summary_date, DEFAULT_TIMEZONE)
+    stress_data = build_stress_data(db_path, summary_date, DEFAULT_TIMEZONE,
+                                     stress_table=stress_table)
     if stress_data:
         summary["stress"] = stress_data["summary"]
 
     write_json(summary_out, summary)
-    history = build_heart_rate_history(db_path, summary_date or new_date, DEFAULT_TIMEZONE)
+    history = build_heart_rate_history(db_path, summary_date or new_date, DEFAULT_TIMEZONE,
+                                        activity_table=activity_table)
     write_json(history_out, history)
     print(f"parsed {db_path}", flush=True)
     print(f"summary -> {summary_out}", flush=True)
@@ -149,6 +158,22 @@ def main():
     history_out = resolve_output_path(args.history_out, root)
     sleep_out = resolve_output_path(args.sleep_out, root)
 
+    # Detect Gadgetbridge tables (multi-brand support)
+    tables = detect_tables(db_path)
+    act_tbl = tables.get("activity", "HUAWEI_ACTIVITY_SAMPLE")
+    slp_stats = tables.get("sleep_stats", "HUAWEI_SLEEP_STATS_SAMPLE")
+    slp_stage = tables.get("sleep_stage", "HUAWEI_SLEEP_STAGE_SAMPLE")
+    stress_tbl = tables.get("stress", "HUAWEI_STRESS_SAMPLE")
+    print(f"   Activity: {act_tbl}")
+    if slp_stats: print(f"   Sleep:    {slp_stats}")
+    if stress_tbl: print(f"   Stress:   {stress_tbl}")
+
+    # Build common kwargs for parse_once
+    _table_kw = dict(
+        activity_table=act_tbl, sleep_stats_table=slp_stats,
+        sleep_stage_table=slp_stage, stress_table=stress_tbl,
+    )
+
     # Seed last_date from existing summary
     last_date = None
     if summary_out.exists():
@@ -159,7 +184,7 @@ def main():
 
     last_date = parse_once(
         db_path, summary_out, history_out, sleep_out, None,
-        args.date, last_date, args.retention_days
+        args.date, last_date, args.retention_days, **_table_kw
     )
     if args.once:
         return
@@ -176,7 +201,7 @@ def main():
                 print(f"db changed, re-parsing...", flush=True)
                 last_date = parse_once(
                     db_path, summary_out, history_out, sleep_out, None,
-                    last_date, last_date, args.retention_days
+                    last_date, last_date, args.retention_days, **_table_kw
                 )
             else:
                 # Also re-parse on date change (midnight)
@@ -185,7 +210,7 @@ def main():
                     last_date = today
                     parse_once(
                         db_path, summary_out, history_out, sleep_out, None,
-                        today, last_date, args.retention_days
+                        today, last_date, args.retention_days, **_table_kw
                     )
         return
 
@@ -198,7 +223,7 @@ def main():
             last_db_state = current_state
             last_date = parse_once(
                 db_path, summary_out, history_out, sleep_out, None,
-                args.date, last_date, args.retention_days
+                args.date, last_date, args.retention_days, **_table_kw
             )
 
 

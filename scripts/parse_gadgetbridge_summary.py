@@ -2,6 +2,7 @@
 import argparse
 import json
 import sqlite3
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -43,6 +44,102 @@ def resolve_db_path(db_arg, root):
     raise FileNotFoundError(f"database not found. Searched:\n{searched}")
 
 
+# ── Multi-brand table detection ─────────────────────────────────────────
+# Gadgetbridge uses different table names per device family.
+# Probe the DB to find which tables actually exist.
+
+# Priority-ordered table candidates per data type.
+# SQL column patterns differ between brands — we probe columns after match.
+TABLE_CANDIDATES = {
+    "activity": [
+        "HUAWEI_ACTIVITY_SAMPLE",
+        "XIAOMI_ACTIVITY_SAMPLE",
+        "MI_BAND_ACTIVITY_SAMPLE",
+        "HUAMI_EXTENDED_ACTIVITY_SAMPLE",
+        "CMF_ACTIVITY_SAMPLE",
+        "PEBBLE_HEALTH_ACTIVITY_SAMPLE",
+        "BANGLE_JS_ACTIVITY_SAMPLE",
+        "GARMIN_ACTIVITY_SAMPLE",
+        "HYBRID_HR_ACTIVITY_SAMPLE",
+        "VIVOMOVE_HR_ACTIVITY_SAMPLE",
+    ],
+    "sleep_stats": [
+        "HUAWEI_SLEEP_STATS_SAMPLE",
+        "XIAOMI_SLEEP_TIME_SAMPLE",
+        "XIAOMI_SLEEP_STAGE_SAMPLE",
+        "CMF_SLEEP_SESSION_SAMPLE",
+        "GARMIN_SLEEP_STAGE_SAMPLE",
+    ],
+    "sleep_stage": [
+        "HUAWEI_SLEEP_STAGE_SAMPLE",
+        "XIAOMI_SLEEP_STAGE_SAMPLE",
+        "CMF_SLEEP_STAGE_SAMPLE",
+        "GARMIN_SLEEP_STAGE_SAMPLE",
+    ],
+    "stress": [
+        "HUAWEI_STRESS_SAMPLE",
+        "HUAMI_STRESS_SAMPLE",
+        "CMF_STRESS_SAMPLE",
+        "GARMIN_STRESS_SAMPLE",
+    ],
+}
+
+# Known column schemas per table (subset actually used by this script)
+TABLE_COLUMNS = {
+    "HUAWEI_ACTIVITY_SAMPLE": {
+        "has_steps": True, "has_distance": True, "has_calories": True,
+        "has_heart_rate": True, "has_spo2": True, "ts_unit": "s",
+    },
+    "XIAOMI_ACTIVITY_SAMPLE": {
+        "has_steps": True, "has_distance": False, "has_calories": False,
+        "has_heart_rate": True, "has_spo2": False, "ts_unit": "s",
+    },
+    "MI_BAND_ACTIVITY_SAMPLE": {
+        "has_steps": True, "has_distance": False, "has_calories": False,
+        "has_heart_rate": True, "has_spo2": False, "ts_unit": "s",
+    },
+    "HUAWEI_SLEEP_STATS_SAMPLE": {
+        "ts_unit": "ms",
+    },
+    "HUAWEI_SLEEP_STAGE_SAMPLE": {
+        "ts_unit": "ms",
+    },
+    "HUAWEI_STRESS_SAMPLE": {
+        "ts_unit": "ms",
+    },
+}
+
+
+def detect_tables(db_path: Path) -> dict[str, str]:
+    """Detect which Gadgetbridge tables exist in the database.
+
+    Returns a dict like {"activity": "HUAWEI_ACTIVITY_SAMPLE", ...}.
+    Unavailable types are omitted from the dict.
+    """
+    with sqlite3.connect(db_path) as conn:
+        existing = set(
+            row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        )
+
+    result = {}
+    for data_type, candidates in TABLE_CANDIDATES.items():
+        for name in candidates:
+            if name in existing:
+                result[data_type] = name
+                break
+
+    return result
+
+
+def probe_columns(db_path: Path, table: str) -> set[str]:
+    """Return set of column names for a given table."""
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(f"PRAGMA table_info(\"{table}\")").fetchall()
+        return {row[1] for row in rows}
+
+
 def day_bounds(summary_date, tz):
     start = datetime.fromisoformat(summary_date).replace(tzinfo=tz)
     return int(start.timestamp() * 1000), int((start.timestamp() + 86400) * 1000)
@@ -73,8 +170,8 @@ def _safe_iso(ts, tz, is_ms=False):
         return None
 
 
-def latest_sample_date(connection, tz):
-    row = connection.execute("select max(TIMESTAMP) from HUAWEI_ACTIVITY_SAMPLE").fetchone()
+def latest_sample_date(connection, tz, activity_table="HUAWEI_ACTIVITY_SAMPLE"):
+    row = connection.execute(f"select max(TIMESTAMP) from \"{activity_table}\"").fetchone()
     if not row or row[0] is None:
         return datetime.now(tz).date().isoformat()
     return datetime.fromtimestamp(row[0], tz).date().isoformat()
@@ -84,43 +181,76 @@ def first_row(connection, query, params=()):
     return connection.execute(query, params).fetchone()
 
 
-def build_summary(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
+def build_summary(db_path, summary_date=None, tz=DEFAULT_TIMEZONE,
+                   activity_table="HUAWEI_ACTIVITY_SAMPLE"):
     with sqlite3.connect(db_path) as connection:
-        # Default to TODAY's date, not latest sample date
         if summary_date is None:
             summary_date = datetime.now(tz).date().isoformat()
 
         start, end = day_bounds(summary_date, tz)
         start_s, end_s = day_bounds_s(summary_date, tz)
+
+        cols = probe_columns(db_path, activity_table)
+
         device = first_row(
             connection,
             "select NAME, MANUFACTURER, IDENTIFIER, MODEL from DEVICE order by _id limit 1",
         )
-        latest_ts = first_row(connection, "select max(TIMESTAMP) from HUAWEI_ACTIVITY_SAMPLE")[0]
-        row = first_row(
-            connection,
-            """
-            select
-              sum(case when STEPS > 0 then STEPS else 0 end),
-              sum(case when DISTANCE > 0 then DISTANCE else 0 end),
-              sum(case when CALORIES > 0 then CALORIES else 0 end),
-              count(case when HEART_RATE > 0 then 1 end),
-              min(case when HEART_RATE > 0 then HEART_RATE end),
-              max(case when HEART_RATE > 0 then HEART_RATE end),
-              avg(case when HEART_RATE > 0 then HEART_RATE end),
-              count(case when SPO > 0 then 1 end),
-              avg(case when SPO > 0 then SPO end)
-            from HUAWEI_ACTIVITY_SAMPLE
+        latest_ts = first_row(connection, f"select max(TIMESTAMP) from \"{activity_table}\"")[0]
+
+        # Build SELECT dynamically from available columns
+        selects = []
+        if "STEPS" in cols:
+            selects.append("sum(case when STEPS > 0 then STEPS else 0 end)")
+        else:
+            selects.append("0")
+        if "DISTANCE" in cols:
+            selects.append("sum(case when DISTANCE > 0 then DISTANCE else 0 end)")
+        else:
+            selects.append("0")
+        if "CALORIES" in cols:
+            selects.append("sum(case when CALORIES > 0 then CALORIES else 0 end)")
+        else:
+            selects.append("0")
+        if "HEART_RATE" in cols:
+            selects.extend([
+                "count(case when HEART_RATE > 0 then 1 end)",
+                "min(case when HEART_RATE > 0 then HEART_RATE end)",
+                "max(case when HEART_RATE > 0 then HEART_RATE end)",
+                "avg(case when HEART_RATE > 0 then HEART_RATE end)",
+            ])
+        else:
+            selects.extend(["0", "null", "null", "null"])
+        if "SPO" in cols:
+            selects.append("count(case when SPO > 0 then 1 end)")
+            selects.append("avg(case when SPO > 0 then SPO end)")
+        else:
+            selects.append("0")
+            selects.append("null")
+
+        query = f"""
+            select {','.join(selects)}
+            from \"{activity_table}\"
             where TIMESTAMP >= ? and TIMESTAMP < ?
-            """,
-            (start_s, end_s),
-        )
+        """
+        row = first_row(connection, query, (start_s, end_s))
+
         battery = first_row(
             connection,
             "select LEVEL, TIMESTAMP from BATTERY_LEVEL order by TIMESTAMP desc limit 1",
         )
 
-    steps, distance, calories_raw, hr_count, hr_min, hr_max, hr_avg, spo_count, spo_avg = row
+    idx = 0
+    steps = row[idx] if row else 0; idx += 1
+    distance = row[idx] if row else 0; idx += 1
+    calories_raw = row[idx] if row else 0; idx += 1
+    hr_count = row[idx] if row else 0; idx += 1
+    hr_min = row[idx] if row else None; idx += 1
+    hr_max = row[idx] if row else None; idx += 1
+    hr_avg = row[idx] if row else None; idx += 1
+    spo_count = row[idx] if row else 0; idx += 1
+    spo_avg = row[idx] if row else None
+
     now = datetime.now(tz).isoformat(timespec="seconds")
 
     return {
@@ -151,20 +281,25 @@ def build_summary(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
     }
 
 
-def build_heart_rate_history(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
+def build_heart_rate_history(db_path, summary_date=None, tz=DEFAULT_TIMEZONE,
+                               activity_table="HUAWEI_ACTIVITY_SAMPLE"):
     with sqlite3.connect(db_path) as connection:
         if summary_date is None:
             summary_date = datetime.now(tz).date().isoformat()
         start_s, end_s = day_bounds_s(summary_date, tz)
-        rows = connection.execute(
-            """
-            select TIMESTAMP, HEART_RATE
-            from HUAWEI_ACTIVITY_SAMPLE
-            where TIMESTAMP >= ? and TIMESTAMP < ? and HEART_RATE > 0
-            order by TIMESTAMP
-            """,
-            (start_s, end_s),
-        ).fetchall()
+        cols = probe_columns(db_path, activity_table)
+        if "HEART_RATE" in cols:
+            rows = connection.execute(
+                f"""
+                select TIMESTAMP, HEART_RATE
+                from \"{activity_table}\"
+                where TIMESTAMP >= ? and TIMESTAMP < ? and HEART_RATE > 0
+                order by TIMESTAMP
+                """,
+                (start_s, end_s),
+            ).fetchall()
+        else:
+            rows = []
 
     return {
         "timestamp": datetime.now(tz).isoformat(timespec="seconds"),
@@ -180,13 +315,15 @@ def build_heart_rate_history(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
     }
 
 
-def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
+def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE,
+                      sleep_stats_table="HUAWEI_SLEEP_STATS_SAMPLE",
+                      sleep_stage_table="HUAWEI_SLEEP_STAGE_SAMPLE"):
     """Build sleep data for a given date (or latest available night)."""
     with sqlite3.connect(db_path) as connection:
         if summary_date is None:
             # Get the latest sleep session date
             row = connection.execute(
-                "select max(WAKEUP_TIME) from HUAWEI_SLEEP_STATS_SAMPLE"
+                f"select max(WAKEUP_TIME) from \"{sleep_stats_table}\""
             ).fetchone()
             if row and row[0]:
                 # Find which date this belongs to (wakeup time in local TZ)
@@ -213,12 +350,12 @@ def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
         next_ms = int(next_d.timestamp() * 1000)
 
         rows = connection.execute(
-            """
+            f"""
             select TIMESTAMP, DEVICE_ID, USER_ID, SLEEP_SCORE, BED_TIME, WAKEUP_TIME,
                    DEEP_PART, WAKE_COUNT, SLEEP_DATA_QUALITY,
                    MIN_HEART_RATE, AVG_HEART_RATE,
                    MIN_OXYGEN_SATURATION, AVG_OXYGEN_SATURATION
-            from HUAWEI_SLEEP_STATS_SAMPLE
+            from \"{sleep_stats_table}\"
             where WAKEUP_TIME >= ? and WAKEUP_TIME < ?
             order by WAKEUP_TIME
             """,
@@ -266,7 +403,7 @@ def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
         # is the one where wakeup_time falls on this date
         # STAGE_SAMPLE.TIMESTAMP is ms; filter entirely in Python to avoid SQL localtime double-conversion
         all_stages = connection.execute(
-            "select TIMESTAMP, STAGE from HUAWEI_SLEEP_STAGE_SAMPLE order by TIMESTAMP"
+            f"select TIMESTAMP, STAGE from \"{sleep_stage_table}\" order by TIMESTAMP"
         ).fetchall()
         stage_rows = [
             (ts, stage) for ts, stage in all_stages
@@ -410,16 +547,17 @@ def build_sleep_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
     }
 
 
-def build_stress_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE):
+def build_stress_data(db_path, summary_date=None, tz=DEFAULT_TIMEZONE,
+                       stress_table="HUAWEI_STRESS_SAMPLE"):
     """Build stress data for a given date."""
     with sqlite3.connect(db_path) as connection:
         if summary_date is None:
             summary_date = latest_sample_date(connection, tz)
         start, end = day_bounds(summary_date, tz)
         rows = connection.execute(
-            """
+            f"""
             select TIMESTAMP, STRESS, LEVEL
-            from HUAWEI_STRESS_SAMPLE
+            from \"{stress_table}\"
             where TIMESTAMP >= ? and TIMESTAMP < ?
             order by TIMESTAMP
             """,
@@ -613,7 +751,20 @@ def main():
         state_file.parent.mkdir(parents=True, exist_ok=True)
         state_file.write_text(f"{current_state[0]},{current_state[1]}")
 
-    summary = build_summary(db_path, args.date, DEFAULT_TIMEZONE)
+    # Detect Gadgetbridge tables (multi-brand support)
+    tables = detect_tables(db_path)
+    if not tables.get("activity"):
+        print(f"❌ No known activity table found in {db_path}. Gadgetbridge export may be empty.")
+        sys.exit(1)
+    act_tbl = tables["activity"]
+    slp_stats = tables.get("sleep_stats")
+    slp_stage = tables.get("sleep_stage")
+    stress_tbl = tables.get("stress")
+    print(f"   Activity: {act_tbl}")
+    if slp_stats: print(f"   Sleep:    {slp_stats}")
+    if stress_tbl: print(f"   Stress:   {stress_tbl}")
+
+    summary = build_summary(db_path, args.date, DEFAULT_TIMEZONE, activity_table=act_tbl)
     new_date = summary["summary_date"]
 
     # Archive old data if date changed
@@ -623,19 +774,22 @@ def main():
     print(f"summary: {summary_out}")
 
     if not args.no_history:
-        history = build_heart_rate_history(db_path, args.date or new_date, DEFAULT_TIMEZONE)
+        history = build_heart_rate_history(db_path, args.date or new_date, DEFAULT_TIMEZONE, activity_table=act_tbl)
         write_json(history_out, history)
         print(f"history: {history_out}")
 
     # Write sleep data
-    sleep_data = build_sleep_data(db_path, args.date, DEFAULT_TIMEZONE)
+    sleep_data = build_sleep_data(db_path, args.date, DEFAULT_TIMEZONE,
+                                   sleep_stats_table=slp_stats or "HUAWEI_SLEEP_STATS_SAMPLE",
+                                   sleep_stage_table=slp_stage or "HUAWEI_SLEEP_STAGE_SAMPLE")
     if sleep_data:
         write_json(sleep_out, sleep_data)
         print(f"sleep: {sleep_out}")
 
     # Add stress to summary (in-place, re-read from disk)
     summary = json.loads(summary_out.read_text(encoding="utf-8"))
-    stress_data = build_stress_data(db_path, args.date, DEFAULT_TIMEZONE)
+    stress_data = build_stress_data(db_path, args.date, DEFAULT_TIMEZONE,
+                                     stress_table=stress_tbl or "HUAWEI_STRESS_SAMPLE")
     if stress_data:
         summary["stress"] = stress_data["summary"]
     write_json(summary_out, summary)
