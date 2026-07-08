@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+*.swp
+*~
+.DS_Store
+# User data — init creates these at runtime
+health_band_data/

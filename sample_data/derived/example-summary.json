@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-06-15T12:00:00+08:00",
+  "summary_date": "2026-06-15",
+  "data_latest_at": "2026-06-15T11:45:00+08:00",
+  "source": "gadgetbridge_export",
+  "device": {
+    "name": "HUAWEI Band 8",
+    "manufacturer": "HUAWEI",
+    "identifier": "XX:XX:XX:XX:XX:XX",
+    "model": "HUAWEI Band 8"
+  },
+  "steps_today": 8523,
+  "distance_meters_today": 6240,
+  "active_calories_raw_today": 285000,
+  "active_calories_kcal_estimate": 285.0,
+  "heart_rate_samples": 1420,
+  "heart_rate_min": 58,
+  "heart_rate_max": 142,
+  "heart_rate_avg": 78.5,
+  "spo2_samples": 320,
+  "spo2_avg": 97.2,
+  "battery_percent": 68,
+  "battery_updated_at": "2026-06-15T11:30:00+08:00",
+  "fresh": true,
+  "notes": "Example data — replace with your own Gadgetbridge export."
+}
