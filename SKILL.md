@@ -38,6 +38,8 @@ health_band action=<action> date=<YYYY-MM-DD>
 
 ## Scripts
 
+> 数据库具体字段请查看 Gadgetbridge 各手环采集字段。不同品牌/型号手环写入的表和字段可能不同。
+
 ```bash
 # 初始化
 python3 scripts/parse_gadgetbridge_summary.py --init

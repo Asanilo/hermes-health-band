@@ -75,6 +75,8 @@ Gadgetbridge (phone) → Syncthing → ~/.hermes/health_band/data/Gadgetbridge.d
                               health_band tool in Hermes
 ```
 
+> 数据库具体字段请查看 Gadgetbridge 各手环采集字段。不同品牌/型号手环写入的表和字段可能不同。
+
 ## Plugin structure
 
 ```
