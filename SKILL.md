@@ -58,6 +58,6 @@ python3 scripts/parse_gadgetbridge_summary.py --hermes-home ~/.hermes/profiles/c
 
 - **date 参数优先查 history 归档**，再查 derived。history 丢了就是查不到
 - **nap 显示**：`nap_minutes > 0` 时显示 Nap 行。stage 编码 1=light, 2=REM, 3=deep, 4=awake, 5=nap
-- **心率源表**：`HUAWEI_ACTIVITY_SAMPLE`，字段 `HEART_RATE`（-1 = 无效）。`HEART_PULSE_SAMPLE` 为空表
+- **心率源表**：`HUAWEI_ACTIVITY_SAMPLE`（Gadgetbridge 表名，各手环通用），字段 `HEART_RATE`（-1 = 无效）。`HEART_PULSE_SAMPLE` 可能为空
 - **sleep duration 切分**：按 stages 中 gap>60min 切 block，每个 block 一个 session
 - **parse 脚本偶发重复 session**：3 条 score=74/-1/87 的重复行，脚本 bug，非 DB 问题

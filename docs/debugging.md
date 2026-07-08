@@ -1,6 +1,8 @@
-# Debugging Guide
+# 调试指南
 
-## L0. Check DB freshness first
+> 以下 SQL 表名是 Gadgetbridge 数据库的实际名称（`HUAWEI_*` 前缀是历史命名惯例，各品牌手环通用）。
+
+## 0. 检查数据库新鲜度
 
 ```bash
 sqlite3 ~/.hermes/health_band/data/Gadgetbridge.db "

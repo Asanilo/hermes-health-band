@@ -60,8 +60,8 @@ def _safe_iso(ts, tz, is_ms=False):
     Args:
         ts: raw timestamp value from DB
         tz: timezone to attach
-        is_ms: True if ts is milliseconds (HUAWEI_STRESS_SAMPLE, HUAWEI_SLEEP_STATS_SAMPLE,
-               HUAWEI_SLEEP_STAGE_SAMPLE), False if seconds (HUAWEI_ACTIVITY_SAMPLE)
+        is_ms: True if ts is milliseconds (stress, sleep_stats, sleep_stage tables),
+               sleep_stage tables), False if seconds (activity table)
     """
     if ts is None or ts <= 0:
         return None
