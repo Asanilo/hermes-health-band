@@ -14,9 +14,10 @@
 
 | What | How |
 |------|-----|
-| 🤖 **Hermes Agent** | `hermes --version` — install from [hermes-agent.nousresearch.com](https://hermes-agent.nousresearch.com) |
-| ⌚ **Smart band** | Paired via [Gadgetbridge](https://gadgetbridge.org/) on Android |
-| 📡 **Database sync** | `Gadgetbridge.db` synced to your computer (Syncthing / manual copy) |
+| 🤖 **Hermes Agent** | `hermes --version` — [install guide](https://hermes-agent.nousresearch.com/docs/getting-started/installation) |
+| ⌚ **Smart band + Gadgetbridge** | [Supported devices](https://gadgetbridge.org/gadgets/) — pair your band with [Gadgetbridge](https://gadgetbridge.org) on Android |
+| 📡 **Database sync** | `Gadgetbridge.db` synced via [Syncthing](https://syncthing.net) (or [manual copy](https://codeberg.org/Freeyourgadget/Gadgetbridge)) |
+| 🐍 **Python 3.10+** | `python3 --version` — scripts use stdlib only (no extra deps) |
 
 ---
 
@@ -126,22 +127,33 @@ python3 scripts/parse_gadgetbridge_summary.py --hermes-home ~/.hermes/profiles/c
 ```
 hermes-health-band/
 ├── health_band/                     # 🧩 Plugin (copy to ~/.hermes/plugins/)
-│   ├── __init__.py                  #   register(ctx) — Hermes entry point
-│   └── tools.py                     #   health_band tool (schema + handler)
+│   ├── __init__.py                  #   register(ctx) — [Hermes entry point](health_band/__init__.py)
+│   └── tools.py                     #   [health_band tool](health_band/tools.py) (schema + handler)
 ├── scripts/
-│   ├── parse_gadgetbridge_summary.py  # 🔄 Parse DB → derived JSON
-│   └── watch_gadgetbridge_sync.py     # 👀 Background watcher daemon
+│   ├── parse_gadgetbridge_summary.py  # 🔄 [Parse DB → derived JSON](scripts/parse_gadgetbridge_summary.py)
+│   └── watch_gadgetbridge_sync.py     # 👀 [Background watcher daemon](scripts/watch_gadgetbridge_sync.py)
 ├── sample_data/derived/             # 📎 Anonymous example JSONs
-│   ├── example-summary.json
-│   ├── example-heart.json
-│   └── example-sleep.json
+│   ├── [example-summary.json](sample_data/derived/example-summary.json)
+│   ├── [example-heart.json](sample_data/derived/example-heart.json)
+│   └── [example-sleep.json](sample_data/derived/example-sleep.json)
 ├── docs/
-│   └── debugging.md                 # 🔧 DB schema, SQL reference, known limits
-├── plugin.yaml                      # Hermes manifest
-├── pyproject.toml                   # pip installable
-├── SKILL.md                         # Agent usage guide
+│   └── [debugging.md](docs/debugging.md)                 # 🔧 DB schema, SQL reference, known limits
+├── [plugin.yaml](plugin.yaml)                      # Hermes manifest
+├── [pyproject.toml](pyproject.toml)                   # pip installable
+├── [SKILL.md](SKILL.md)                         # Agent usage guide
 └── README.md                        # ← you are here
 ```
+
+---
+
+## 🔗 Related
+
+| Project | Link |
+|---------|------|
+| 🧠 Hermes Agent | [hermes-agent.nousresearch.com](https://hermes-agent.nousresearch.com) · [GitHub](https://github.com/NousResearch/hermes-agent) |
+| ⌚ Gadgetbridge | [gadgetbridge.org](https://gadgetbridge.org) · [Codeberg](https://codeberg.org/Freeyourgadget/Gadgetbridge) |
+| 🔄 Syncthing | [syncthing.net](https://syncthing.net) |
+| 📖 Hermes plugin docs | [Plugin development guide](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins) |
 
 ---
 
