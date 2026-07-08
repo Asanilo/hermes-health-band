@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-06-15T12:00:00+08:00",
+  "summary_date": "2026-06-15",
+  "source": "gadgetbridge_export",
+  "samples": [
+    {"timestamp": "2026-06-15T08:00:00+08:00", "heart_rate": 72},
+    {"timestamp": "2026-06-15T08:05:00+08:00", "heart_rate": 75},
+    {"timestamp": "2026-06-15T08:10:00+08:00", "heart_rate": 68},
+    {"timestamp": "2026-06-15T08:15:00+08:00", "heart_rate": 71},
+    {"timestamp": "2026-06-15T08:20:00+08:00", "heart_rate": 74},
+    {"timestamp": "2026-06-15T08:25:00+08:00", "heart_rate": 130},
+    {"timestamp": "2026-06-15T08:30:00+08:00", "heart_rate": 142},
+    {"timestamp": "2026-06-15T08:35:00+08:00", "heart_rate": 118},
+    {"timestamp": "2026-06-15T08:40:00+08:00", "heart_rate": 85},
+    {"timestamp": "2026-06-15T08:45:00+08:00", "heart_rate": 78}
+  ]
+}
